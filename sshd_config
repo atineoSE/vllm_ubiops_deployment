@@ -1,0 +1,13 @@
+Port 2222
+
+HostKey /home/deployment/.ssh/ssh_host_rsa_key
+HostKey /home/deployment/.ssh/ssh_host_ecdsa_key
+HostKey /home/deployment/.ssh/ssh_host_ed25519_key
+
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+UsePAM yes
+PrintMotd no
+AcceptEnv LANG LC_*
+ClientAliveInterval 120
+UseDNS no
