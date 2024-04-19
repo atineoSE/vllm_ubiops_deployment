@@ -1,3 +1,6 @@
 ubiops
 transformers
 vllm
+huggingface-hub
+jupyterlab
+notebook

@@ -2,12 +2,31 @@ import os
 import shutil
 import subprocess
 import urllib.request
+import uuid
 from typing import Any
 
 import torch
 import ubiops
+from huggingface_hub import login
 from transformers import AutoModelForCausalLM
 from vllm import LLM as vLLM
+
+
+def get_ip_address():
+    http_request = urllib.request.urlopen("https://whatismyipv4.ubiops.com")
+    ip_address = http_request.read().decode("utf8")
+    http_request.close()
+    return ip_address
+
+
+def init_jupyter():
+    token = str(uuid.uuid4())
+    subprocess.Popen(
+        ["jupyter", "notebook", "--ip", "0.0.0.0", "--IdentityProvider.token", token],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    print(f"Notebook URL: http://{get_ip_address()}:8888/tree?token={token}")
 
 
 def enable_ssh_access():
@@ -56,25 +75,22 @@ def enable_ssh_access():
     )
 
     subprocess.Popen(["/usr/sbin/sshd", "-f", "/home/deployment/sshd_config"])
-
-    # Get the IP address and print to the logs
-    http_request = urllib.request.urlopen("https://whatismyipv4.ubiops.com")
-    ip_address = http_request.read().decode("utf8")
-    http_request.close()
-
-    print()
-    print(f"The IP address of this deployment is: {ip_address}")
+    print(f"The IP address of this deployment is: {get_ip_address()}")
 
 
 def fetch_model(context):
+    # Loging to Hugging Face for gated models
+    login(token=os.environ["HF_TOKEN"])
+
     # Taken from https://ubiops.com/docs/howto/howto-download-from-external-website/
     configuration = ubiops.Configuration(host="https://api.ubiops.com/v2.1")
     configuration.api_key["Authorization"] = os.environ["UBIOPS_API_TOKEN"]
     client = ubiops.ApiClient(configuration)
     # api_client = ubiops.CoreApi(client)
     project_name = context["project"]
-    model_name = "mixtral-8x7b-instruct"
-    model_hub_path = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    model_name = "mistral-7b-instruct"
+    model_hub_path = "mistralai/Mistral-7B-Instruct-v0.2"
+    # model_local_path = "./mistral-7b-instruct/snapshots/41b61a33a2483885c981aa79e0df6b32407ed873"
 
     try:
         # Retrieve from default bucket, if it exists
@@ -109,14 +125,15 @@ class Deployment:
 
     def __init__(self, base_directory, context):
         print("Initialising")
-        enable_ssh_access()
-        model_name = fetch_model(context)
+        # enable_ssh_access()
+        init_jupyter()
+        # model_name = fetch_model(context)
 
         num_gpus = torch.cuda.device_count()
         print(f"Running on {num_gpus} GPUs")
-        self.model = vLLM(model=f"./{model_name}", tensor_parallel_size=num_gpus)
+        # self.model = vLLM(model=f"./{model_name}", tensor_parallel_size=num_gpus)
 
     def request(self, data):
         prompt = data["prompt"]
-        response = self.model.generate(prompt)
-        return {"response": response}
+        # response = self.model.generate(prompt)
+        return {"response": "dummy"}
