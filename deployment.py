@@ -10,6 +10,7 @@ import ubiops
 from huggingface_hub import login
 from transformers import AutoModelForCausalLM
 from vllm import LLM as vLLM
+from vllm import SamplingParams
 
 
 def get_ip_address():
@@ -88,10 +89,9 @@ def fetch_model(context):
     client = ubiops.ApiClient(configuration)
     # api_client = ubiops.CoreApi(client)
     project_name = context["project"]
-    model_name = "mistral-7b-instruct"
-    model_hub_path = "mistralai/Mistral-7B-Instruct-v0.2"
-    # model_local_path = "./mistral-7b-instruct/snapshots/41b61a33a2483885c981aa79e0df6b32407ed873"
+    model_name = "Mistral-7B-Instruct-v0.2"
 
+    # Retrieve from default bucket (it must have been copied previously)
     print("Retrieving zipped model from default bucket...")
     ubiops.utils.download_file(
         client,
@@ -103,7 +103,7 @@ def fetch_model(context):
         chunk_size=8192,
     )
     print("Unpacking zipped model...")
-    shutil.unpack_archive(f"{model_name}.zip", f"./{model_name}", "zip")
+    shutil.unpack_archive(f"{model_name}.zip", f".", "zip")
 
     print(f"Model successfully installed to local folder {model_name}")
 
@@ -112,6 +112,7 @@ def fetch_model(context):
 
 class Deployment:
     model: Any
+    sampling_params: SamplingParams
 
     def __init__(self, base_directory, context):
         print("Initialising deployment...")
@@ -119,14 +120,15 @@ class Deployment:
         enable_ssh_access()
         print("Initializing Jupyter notebook...")
         init_jupyter()
-        # print("Fetching model...")
-        # model_name = fetch_model(context)
+        print("Fetching model...")
+        model_name = fetch_model(context)
 
         num_gpus = torch.cuda.device_count()
         print(f"Running on {num_gpus} GPUs")
-        # self.model = vLLM(model=f"./{model_name}", tensor_parallel_size=num_gpus)
+        self.model = vLLM(model=f"./{model_name}", tensor_parallel_size=num_gpus)
+        self.sampling_params = SamplingParams(temperature=0.8, max_tokens=1000)
 
     def request(self, data):
         prompt = data["prompt"]
-        # response = self.model.generate(prompt)
-        return {"response": "dummy"}
+        response = self.model.generate(prompt, self.sampling_params)
+        return {"response": response[0].outputs[0].text}
