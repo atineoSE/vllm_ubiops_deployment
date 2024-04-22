@@ -4,3 +4,4 @@ vllm
 huggingface-hub
 jupyterlab
 notebook
+ipywidgets

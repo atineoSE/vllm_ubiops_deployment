@@ -92,30 +92,20 @@ def fetch_model(context):
     model_hub_path = "mistralai/Mistral-7B-Instruct-v0.2"
     # model_local_path = "./mistral-7b-instruct/snapshots/41b61a33a2483885c981aa79e0df6b32407ed873"
 
-    try:
-        # Retrieve from default bucket, if it exists
-        ubiops.utils.download_file(
-            client,
-            project_name,
-            bucket_name="default",
-            file_name=f"{model_name}.zip",
-            output_path=".",
-            stream=True,
-            chunk_size=8192,
-        )
-        shutil.unpack_archive(f"{model_name}.zip", f"./{model_name}", "zip")
-        print("Model file loaded from object storage")
-    except Exception as e:
-        # Fetch from Hugging Face Hub, and store to bucket for reuse, if it doesn't exist
-        print(e)
-        print("Model does not exist. Downloading from Hugging Face")
+    print("Retrieving zipped model from default bucket...")
+    ubiops.utils.download_file(
+        client,
+        project_name,
+        bucket_name="default",
+        file_name=f"{model_name}.zip",
+        output_path=".",
+        stream=True,
+        chunk_size=8192,
+    )
+    print("Unpacking zipped model...")
+    shutil.unpack_archive(f"{model_name}.zip", f"./{model_name}", "zip")
 
-        model = AutoModelForCausalLM.from_pretrained(model_hub_path)
-        model.save_pretrained(f"./{model_name}")
-
-        print("Storing model on UbiOps")
-        _ = shutil.make_archive(model_name, "zip", model_name)
-        ubiops.utils.upload_file(client, project_name, f"{model_name}.zip", "default")
+    print(f"Model successfully installed to local folder {model_name}")
 
     return model_name
 
@@ -124,9 +114,12 @@ class Deployment:
     model: Any
 
     def __init__(self, base_directory, context):
-        print("Initialising")
-        # enable_ssh_access()
+        print("Initialising deployment...")
+        print("Enabling SSH access...")
+        enable_ssh_access()
+        print("Initializing Jupyter notebook...")
         init_jupyter()
+        # print("Fetching model...")
         # model_name = fetch_model(context)
 
         num_gpus = torch.cuda.device_count()
